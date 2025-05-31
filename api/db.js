@@ -1,18 +1,15 @@
-// @ts-check
 import { kv } from '@vercel/kv';
 
 // Record a view for a specific image
 export async function recordView(imageName) {
   const today = new Date().toISOString().split('T')[0];
 
-  // Initialize or update total views
-  await kv.hincrby(`image:${imageName}`, 'totalViews', 1);
-
-  // Update daily views
-  await kv.hincrby(`image:${imageName}:days`, today, 1);
-
-  // Add to global image list
-  await kv.sadd('images', imageName);
+  // Using pipeline for atomic operations
+  await kv.pipeline()
+    .hincrby(`image:${imageName}`, 'totalViews', 1)
+    .hincrby(`image:${imageName}:days`, today, 1)
+    .sadd('images', imageName)
+    .exec();
 }
 
 // Get statistics for all images
@@ -29,7 +26,8 @@ export async function getAllStats() {
 
 // Get statistics for a specific image
 export async function getImageStats(imageName) {
-  const [totalViews, dailyViews] = await kv.multi()
+  const [totalViews, dailyViews] = await kv
+    .pipeline()
     .hget(`image:${imageName}`, 'totalViews')
     .hgetall(`image:${imageName}:days`)
     .exec();
