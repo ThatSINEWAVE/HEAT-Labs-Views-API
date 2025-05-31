@@ -1,13 +1,12 @@
-import { getDailyStats } from './db';
+import { getDailyStats, getImageStats } from './db';
 
 export default async function handler(req, res) {
-  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
   try {
-    const { image, date } = req.query;
-    const stats = await getDailyStats();
+    const { image, date, nocache } = req.query;
+    const stats = await getDailyStats(nocache !== 'true');
 
     if (image) {
       const imageStats = await getImageStats(image);

@@ -1,12 +1,11 @@
 import { getAllStats, getImageStats } from './db';
 
 export default async function handler(req, res) {
-  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
   try {
-    const { image } = req.query;
+    const { image, nocache } = req.query;
 
     if (image) {
       const stats = await getImageStats(image);
@@ -16,7 +15,7 @@ export default async function handler(req, res) {
       return res.json(stats);
     }
 
-    const stats = await getAllStats();
+    const stats = await getAllStats(nocache !== 'true');
     res.json(stats);
   } catch (error) {
     console.error('Error fetching statistics:', error);
