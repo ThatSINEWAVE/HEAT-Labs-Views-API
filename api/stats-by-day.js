@@ -6,14 +6,12 @@ export default async function handler(req, res) {
     const stats = await getDailyStats();
 
     if (image) {
-      // Filter for specific image
-      const imageStats = stats[image];
+      const imageStats = await getImageStats(image);
       if (!imageStats) {
         return res.status(404).json({ error: 'Image not found' });
       }
 
       if (date) {
-        // Filter for specific date
         const dailyCount = imageStats.dailyViews[date] || 0;
         return res.json({
           image,
@@ -22,7 +20,6 @@ export default async function handler(req, res) {
         });
       }
 
-      // Return all daily stats for the image
       return res.json({
         image,
         totalViews: imageStats.totalViews,
@@ -30,16 +27,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Return all stats grouped by day
-    const dailyStats = {};
-    Object.keys(stats).forEach(img => {
-      Object.keys(stats[img].dailyViews).forEach(day => {
-        if (!dailyStats[day]) dailyStats[day] = {};
-        dailyStats[day][img] = stats[img].dailyViews[day];
-      });
-    });
-
-    res.json(dailyStats);
+    res.json(stats);
   } catch (error) {
     console.error('Error fetching daily statistics:', error);
     res.status(500).json({ error: 'Internal server error' });

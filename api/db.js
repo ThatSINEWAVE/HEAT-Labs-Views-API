@@ -1,68 +1,57 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const DB_PATH = path.join(process.cwd(), 'tracker-data.json');
-
-// Initialize database file if it doesn't exist
-async function initDB() {
-  try {
-    await fs.access(DB_PATH);
-  } catch (err) {
-    await fs.writeFile(DB_PATH, JSON.stringify({}));
-  }
-}
-
-// Read the database
-async function readDB() {
-  await initDB();
-  const data = await fs.readFile(DB_PATH, 'utf-8');
-  return JSON.parse(data);
-}
-
-// Write to the database
-async function writeDB(data) {
-  await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
-}
+// @ts-check
+import { kv } from '@vercel/kv';
 
 // Record a view for a specific image
 export async function recordView(imageName) {
   const today = new Date().toISOString().split('T')[0];
-  const db = await readDB();
 
-  // Initialize image entry if it doesn't exist
-  if (!db[imageName]) {
-    db[imageName] = {
-      totalViews: 0,
-      dailyViews: {}
-    };
-  }
-
-  // Update total views
-  db[imageName].totalViews += 1;
+  // Initialize or update total views
+  await kv.hincrby(`image:${imageName}`, 'totalViews', 1);
 
   // Update daily views
-  if (!db[imageName].dailyViews[today]) {
-    db[imageName].dailyViews[today] = 0;
-  }
-  db[imageName].dailyViews[today] += 1;
+  await kv.hincrby(`image:${imageName}:days`, today, 1);
 
-  await writeDB(db);
+  // Add to global image list
+  await kv.sadd('images', imageName);
 }
 
 // Get statistics for all images
 export async function getAllStats() {
-  const db = await readDB();
-  return db;
+  const images = await kv.smembers('images');
+  const stats = {};
+
+  for (const image of images) {
+    stats[image] = await getImageStats(image);
+  }
+
+  return stats;
 }
 
 // Get statistics for a specific image
 export async function getImageStats(imageName) {
-  const db = await readDB();
-  return db[imageName] || null;
+  const [totalViews, dailyViews] = await kv.multi()
+    .hget(`image:${imageName}`, 'totalViews')
+    .hgetall(`image:${imageName}:days`)
+    .exec();
+
+  return {
+    totalViews: parseInt(totalViews || '0'),
+    dailyViews: dailyViews || {}
+  };
 }
 
 // Get daily statistics for all images
 export async function getDailyStats() {
-  const db = await readDB();
-  return db;
+  const images = await kv.smembers('images');
+  const dailyStats = {};
+
+  for (const image of images) {
+    const stats = await getImageStats(image);
+    for (const [date, count] of Object.entries(stats.dailyViews)) {
+      if (!dailyStats[date]) dailyStats[date] = {};
+      dailyStats[date][image] = parseInt(count);
+    }
+  }
+
+  return dailyStats;
 }

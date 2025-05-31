@@ -5,7 +5,6 @@ export default async function handler(req, res) {
     const { image } = req.query;
 
     if (image) {
-      // Get stats for a specific image
       const stats = await getImageStats(image);
       if (!stats) {
         return res.status(404).json({ error: 'Image not found' });
@@ -13,7 +12,6 @@ export default async function handler(req, res) {
       return res.json(stats);
     }
 
-    // Get stats for all images
     const stats = await getAllStats();
     res.json(stats);
   } catch (error) {
