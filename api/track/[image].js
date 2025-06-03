@@ -3,54 +3,74 @@ import {
     kv
 } from '../db';
 
-export default async function handler(req, res) {
-    const {
-        image
-    } = req.query;
-    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+// Helper function to serve the transparent 1x1 pixel
+function servePixel(res) {
+    const pixel = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+        'base64'
+    );
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.send(pixel);
+}
 
+// Helper function to get client IP address
+function getClientIp(req) {
+    return req.headers['x-forwarded-for']?.split(',')[0].trim() ||
+        req.headers['x-real-ip'] ||
+        req.connection?.remoteAddress ||
+        req.socket?.remoteAddress ||
+        req.connection?.socket?.remoteAddress ||
+        'unknown-ip';
+}
+
+export default async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
 
     try {
-        // Rate limiting - check last request time
-        const lastRequestKey = `rate_limit:${ip}:${image}`;
-        const lastRequest = await kv.get(lastRequestKey);
-        const now = Date.now();
+        const {
+            image
+        } = req.query;
 
-        if (lastRequest && (now - parseInt(lastRequest)) < 1000) {
-            // Too soon since last request - serve pixel but don't record view
-            const pixel = Buffer.from(
-                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-                'base64'
-            );
-            res.setHeader('Content-Type', 'image/png');
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            return res.send(pixel);
+        // Validate required image parameter
+        if (!image || typeof image !== 'string') {
+            console.warn('Invalid or missing image parameter');
+            return servePixel(res);
         }
 
-        // Record the view and update rate limit
+        // Get client IP address
+        const ip = getClientIp(req);
+        if (ip === 'unknown-ip') {
+            console.warn('Could not determine client IP address');
+        }
+
+        // Rate limiting - check last request time
+        const rateLimitKey = `rate_limit:${ip}:${image}`;
+        const lastRequestTime = await kv.get(rateLimitKey);
+        const currentTime = Date.now();
+
+        // If request came too soon, serve pixel without recording
+        if (lastRequestTime && (currentTime - parseInt(lastRequestTime)) < 1000) {
+            return servePixel(res);
+        }
+
+        // Update rate limit and record view
         await kv.pipeline()
-            .set(lastRequestKey, now.toString())
-            .expire(lastRequestKey, 2) // Keep for 2 seconds to prevent spam
+            .set(rateLimitKey, currentTime.toString())
+            .expire(rateLimitKey, 2) // Expire after 2 seconds
             .exec();
 
+        // Record the view
         await recordView(image);
 
-        // Serve a transparent 1x1 pixel
-        const pixel = Buffer.from(
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-            'base64'
-        );
+        // Serve the tracking pixel
+        return servePixel(res);
 
-        res.setHeader('Content-Type', 'image/png');
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.send(pixel);
     } catch (error) {
-        console.error('Error serving tracking pixel:', error);
-        res.status(500).json({
-            error: 'Internal server error'
-        });
+        console.error('Error in tracking pixel handler:', error);
+        // Always serve the pixel even if something fails
+        return servePixel(res);
     }
 }

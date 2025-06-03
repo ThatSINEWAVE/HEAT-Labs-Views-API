@@ -1,6 +1,7 @@
-import {
-    kv
-} from '@vercel/kv';
+import { kv } from '@vercel/kv';
+
+// Export the kv instance for rate limiting
+export { kv };
 
 // Record a view for a specific image
 export async function recordView(imageName) {
