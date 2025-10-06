@@ -59,7 +59,7 @@ Returns view statistics organized by date.
 
 <div align="center">
 
-## [Join my discord server](https://thatsinewave.github.io/Discord-Redirect/)
+## [Join my discord server](https://discord.heatlabs.net)
 
 </div>
 
