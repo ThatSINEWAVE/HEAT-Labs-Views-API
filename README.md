@@ -2,7 +2,7 @@
 
 # HEAT Labs Privacy-Focused View Tracker API
 
-A completely anonymous, privacy-respecting view counter API designed for [HEAT Labs](https://heatlabs.github.io) website. This system tracks page views without collecting any user-identifiable information.
+A completely anonymous, privacy-respecting view counter API designed for [HEAT Labs](https://heatlabs.net) website. This system tracks page views without collecting any user-identifiable information.
 
 </div>
 
