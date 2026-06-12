@@ -1,0 +1,39 @@
+name: Text Issue
+description: Report spelling mistakes, grammar issues, incorrect wording, or missing text.
+title: "[TEXT] "
+labels:
+
+* text
+
+body:
+
+* type: input
+  id: location
+  attributes:
+  label: Location
+  description: Where is the text located?
+  placeholder: Vehicle page, guide, menu, etc.
+  validations:
+  required: true
+
+* type: textarea
+  id: current_text
+  attributes:
+  label: Current Text
+  description: Copy the text exactly as it appears.
+  validations:
+  required: true
+
+* type: textarea
+  id: suggested_text
+  attributes:
+  label: Suggested Correction
+  description: What should it say instead?
+  validations:
+  required: true
+
+* type: textarea
+  id: notes
+  attributes:
+  label: Additional Notes
+  description: Optional context or explanation.
